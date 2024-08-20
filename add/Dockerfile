@@ -1,4 +1,5 @@
-FROM ubuntu:20.04 # ubuntu:latest
+# ubuntu:latest
+FROM ubuntu:20.04
 
 WORKDIR /bim2sim
 
@@ -43,13 +44,16 @@ RUN make install
 RUN apt-get -y install libpolyclipping-dev
 ################################################################################
 
-
+RUN apt-get update && apt-get install -y \
+    libcgal-dev \
+    libcgal-qt5-dev
 ################################################################################
-ADD ifc2sb /tmp/ifc2sb/code
-RUN cd code && mkdir build
+ADD ./code /tmp/ifc2sb/code
+RUN rm -rf /tmp/ifc2sb/code/build /tmp/ifc2sb/code/CMakeCache.txt
+RUN mkdir -p /tmp/ifc2sb/code/build
 WORKDIR /tmp/ifc2sb/code/build
 RUN cmake ../cmake -DCLIPPER_INCLUDE_PATH="/usr/include/polyclipping"
-RUN make -j16
+RUN make -j8
 RUN ./IFC2SB -h
 ################################################################################
 
