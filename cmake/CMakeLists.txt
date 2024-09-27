@@ -191,6 +191,7 @@ add_executable(
 target_link_libraries(
         IFC2SB
         ${TARGET_LIBS}
+        OpenMP::OpenMP_CXX
 )
 
 # SBV
@@ -210,6 +211,7 @@ add_executable(
 target_link_libraries(
         SBV
         ${TARGET_LIBS_SBV}
+        OpenMP::OpenMP_CXX
 )
 
 
