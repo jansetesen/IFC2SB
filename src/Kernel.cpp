@@ -2962,45 +2962,19 @@ bool Kernel::fuse_cFaces(TopoDS_Shape &fuse, const std::list<cFace> &old_cFaces,
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Define the batch size
-    size_t batchSize = 1000; // Adjust this value as needed
+    // populate builder
+    BOPAlgo_Builder builder;
+    for (const auto &cface: old_cFaces)
+        builder.AddArgument(cface.face);
 
-    // Calculate the number of batches
-    size_t numBatches = (old_cFaces.size() + batchSize - 1) / batchSize;
+    builder.SetNonDestructive(false);
+    builder.SetCheckInverted(false);
+    builder.SetFuzzyValue(fuzzy_tol);
+    builder.SetRunParallel(true);
+    builder.SetUseOBB(true);
+    builder.SetToFillHistory(true);
 
-    bool modified = false; // Track if any builder has modified anything
-
-    // Create a compound to hold all the builder shapes
-    TopoDS_Compound compound;
-    BRep_Builder compoundBuilder;
-    compoundBuilder.MakeCompound(compound);
-
-    for (size_t batchNum = 0; batchNum < numBatches; ++batchNum) {
-        // Calculate the start and end iterators for this batch
-        auto startIter = std::next(old_cFaces.begin(), batchNum * batchSize);
-        auto endIter = batchNum == numBatches - 1 ? old_cFaces.end() : std::next(startIter, batchSize);
-
-        // Create a builder for this batch
-        BOPAlgo_Builder builder;
-
-        // Add the faces in this batch to the builder
-        for (auto iter = startIter; iter != endIter; ++iter) {
-            builder.AddArgument(iter->face);
-        }
-
-        // Set the builder parameters
-        builder.SetNonDestructive(false);
-        builder.SetCheckInverted(false);
-        builder.SetFuzzyValue(fuzzy_tol);
-        builder.SetRunParallel(true);
-        builder.SetUseOBB(true);
-        builder.SetToFillHistory(true);
-
-        // Perform the operation
-        builder.Perform();
-
-        // Add the builder's shape to the compound
-        compoundBuilder.Add(compound, builder.Shape());
+    builder.Perform();
 
     if (builder.HasWarnings()) {
         std::cerr << "Warnings:" << std::endl;
@@ -3011,46 +2985,44 @@ bool Kernel::fuse_cFaces(TopoDS_Shape &fuse, const std::list<cFace> &old_cFaces,
         builder.DumpErrors(std::cerr);
     }
 
-        if (builder.HasModified()) {
-            modified = true; // Set modified to true if builder has modified anything
+    if (!builder.HasModified()) {
+        std::cerr << "Nothing was modified." << std::endl;
+        return false;
+    }
+
+    for (auto &cface: old_cFaces) {
+
+        bool isDeleted = builder.IsDeleted(cface.face);
+
+        if (isDeleted) {
+            auto Generated = builder.Generated(cface.face);
+            std::cerr << "[Error] Face was deleted! " << cface.Info() << "\t" << isDeleted << "\t" << Generated.Size() << std::endl;
+            continue;
         }
-
-        for (auto iter = startIter; iter != endIter; ++iter) {
-            auto &cface = *iter;
-
-            bool isDeleted = builder.IsDeleted(cface.face);
-
-            if (isDeleted) {
-                auto Generated = builder.Generated(cface.face);
-                std::cerr << "[Error] Face was deleted! " << cface.Info() << "\t" << isDeleted << "\t" << Generated.Size() << std::endl;
-                continue;
-            }
 
         //  if (!builder.Generated(orig_face.face).IsEmpty())
         //      std::cerr << "[Error] Face generated new faces! " << hash(orig_face.face) << "\t" << isDeleted << "\t" << builder.Generated(orig_face.face).Size() << "\t" << builder.Modified(orig_face.face).Size() << std::endl;
 
-            auto L = builder.Modified(cface.face);
+        auto L = builder.Modified(cface.face);
 
-            if (L.IsEmpty()) {
-                new_cFaces.emplace_back(cface.face, cface.Ancestor(), fid);
+        if (L.IsEmpty()) {  // face was not modified
+            new_cFaces.emplace_back(cface.face, cface.Ancestor(), fid); // original TopoDS_Face, pointer on oFace
+            fid++;
+        } else // face was modified into one or more new faces
+            for (const TopoDS_Shape &shape: L) {
+                new_cFaces.emplace_back(TopoDS::Face(shape), cface.Ancestor(), fid); // new face, pointer on oFace
                 fid++;
-            } else {
-                for (const TopoDS_Shape &shape: L) {
-                    new_cFaces.emplace_back(TopoDS::Face(shape), cface.Ancestor(), fid);
-                    fid++;
-                }
             }
-        }
     }
 
-    // Assign the compound to the fuse variable
-    fuse = compound;
+    fuse = builder.Shape();
 
     auto finish = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = finish - start;
     std::cout << print_time(elapsed.count(), "Fuse cFaces", std::to_string(Topo(fuse).faces().Size()) + ", " + std::to_string(new_cFaces.size()));
 
-    return modified; // Return the value of modified
+    return true;
+
 }
 void Kernel::check_fuse(const TopoDS_Shape &fuse) {
 
