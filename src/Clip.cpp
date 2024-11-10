@@ -134,13 +134,15 @@ bool Clip::prepare_products(Kernel &K, std::unordered_map<IfcUtil::IfcBaseClass 
     //***************************************************************
     // Create container for products, that are not void filling products (e.g. walls)
     std::set<std::string> non_void_filling_products;
+    std::map< IfcUtil::IfcBaseEntity*, std::set<std::string>> whole_without_representation2parts;
     //***************************************************************
 
     //***************************************************************
     // Find products and their guids that are from a desired class and are a) not void filling products or b) void filling products
-    K.find_relevant_products(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries);
+    K.find_relevant_products(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries, whole_without_representation2parts);
     //***************************************************************
 
+    K.generate_shapes_from_ifc_guids_parts(model, settings, products, whole_without_representation2parts, bounds_min, bounds_max);
     //***************************************************************
     // Generating shapes from specified Ifc entities
     if (!K.generate_shapes_from_ifc_guids(model, settings, products, non_void_filling_products, bounds_min, bounds_max))

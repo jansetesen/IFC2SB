@@ -43,8 +43,8 @@ bool Kernel::fuse_original_faces(TopoDS_Shape &fuse, std::list<oFace> &orig_face
     BOPAlgo_Options::SetParallelMode(true);
     builder.SetRunParallel(true);  // Parallel processing option allows running the algorithm in parallel mode
     builder.SetUseOBB(true);  // Usage of Oriented Bounding Boxes in the operation
-    // from OCC.Core.BOPAlgo import BOPAlgo_GlueShift
-    //builder.SetGlue(BOPAlgo_GlueShift);  // Gluing option allows speeding-up the intersection of the arguments
+    //from OCC.Core.BOPAlgo import BOPAlgo_GlueShift
+    builder.SetGlue(BOPAlgo_GlueShift);  // Gluing option allows speeding-up the intersection of the arguments
     builder.SetToFillHistory(true);  // Allows disabling the history collection.
 
     builder.Perform();

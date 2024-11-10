@@ -120,9 +120,11 @@ public:
 
     bool get_length_conversion_factor(std::unique_ptr<IfcParse::IfcFile> &model);
 
-    void find_relevant_products(std::unique_ptr<IfcParse::IfcFile> &model, const std::set<std::string> &include_entities, std::set<std::string> &non_void_filling_products, bool integrate_openings_into_walls, bool use_ifcopeningelelements_for_virtual_boundaries);
+    void find_relevant_products(std::unique_ptr<IfcParse::IfcFile> &model, const std::set<std::string> &include_entities, std::set<std::string> &non_void_filling_products, bool integrate_openings_into_walls, bool use_ifcopeningelelements_for_virtual_boundaries, std::map< IfcUtil::IfcBaseEntity*, std::set<std::string>> &wholes_and_parts);
 
     bool generate_shapes_from_ifc_guids(std::unique_ptr<IfcParse::IfcFile> &model, IfcGeom::IteratorSettings settings, std::list<Product> &products, const std::set<std::string> &include_guids, gp_XYZ &bounds_min, gp_XYZ &bounds_max) const;
+
+    bool generate_shapes_from_ifc_guids_parts(std::unique_ptr<IfcParse::IfcFile> &model, IfcGeom::IteratorSettings settings, std::list<Product> &products, const std::map< IfcUtil::IfcBaseEntity*, std::set<std::string>> &wholes_and_parts, gp_XYZ &bounds_min, gp_XYZ &bounds_max) const;
 
     void add_decomposed_entities_to_products(std::unique_ptr<IfcParse::IfcFile> &model, IfcGeom::IteratorSettings settings, std::list<Product> &products, const std::set<std::string> &include_entities);
 
@@ -323,7 +325,7 @@ private:
     double round_double_for_ifc_write(double d) const;
 
     template<typename Schema>
-    void find_relevant_products_worker(std::unique_ptr<IfcParse::IfcFile> &model, const std::set<std::string> &include_entities, std::set<std::string> &non_void_filling_products, bool integrate_openings_into_walls, bool use_ifcopeningelelements_for_virtual_boundaries);
+    void find_relevant_products_worker(std::unique_ptr<IfcParse::IfcFile> &model, const std::set<std::string> &include_entities, std::set<std::string> &non_void_filling_products, bool integrate_openings_into_walls, bool use_ifcopeningelelements_for_virtual_boundaries, std::map< IfcUtil::IfcBaseEntity*, std::set<std::string>> &wholes_and_parts);
 
     template<typename Schema>
     void find_openings_in_products_worker(std::list<Product> &products, std::set<std::string> &guids);

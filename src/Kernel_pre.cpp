@@ -87,6 +87,58 @@ bool Kernel::generate_shapes_from_ifc_guids(std::unique_ptr<IfcParse::IfcFile> &
     return true;
 }
 
+bool Kernel::generate_shapes_from_ifc_guids_parts(std::unique_ptr<IfcParse::IfcFile> &model, IfcGeom::IteratorSettings settings, std::list<Product> &products, const std::map< IfcUtil::IfcBaseEntity*, std::set<std::string>> &wholes_and_parts, gp_XYZ &bounds_min, gp_XYZ &bounds_max) const {
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for(const auto& pair : wholes_and_parts) {
+        IfcGeom::attribute_filter attribute_filter;
+        attribute_filter.include = true;
+        attribute_filter.traverse = false;
+        attribute_filter.attribute_name = "GlobalId";
+        attribute_filter.populate(pair.second);
+        std::vector<IfcGeom::filter_t> filter_funcs;
+        filter_funcs.emplace_back(boost::ref(attribute_filter));
+
+        IfcGeom::Iterator<real_t> geom_iterator(settings, model.get(), filter_funcs, num_threads);
+        std::set<std::string> contexts;
+
+        if (!geom_iterator.initialize()) {
+            std::cerr << "No geometrical entities found. Initialization failed." << std::endl;
+            continue;
+        }
+
+        TopoDS_Compound compound;
+        BRep_Builder builder;
+        builder.MakeCompound(compound);
+
+        do {
+            IfcGeom::Element<real_t> *geom_object = geom_iterator.get();
+            if (!check_ifc_context(geom_object)) continue;
+            builder.Add(compound, geom_object_to_shape(geom_object));
+            contexts.insert(geom_object->context());
+            geom_object->product();
+        } while (geom_iterator.next());
+
+        products.emplace_back(pair.first, std::to_string(pair.first->data().id()), compound);
+
+        //Viewer::visualize_shape(compound);
+
+        // store aabb values of building
+        bounds_min = geom_iterator.bounds_min();
+        bounds_max = geom_iterator.bounds_max();
+    }
+
+    //Viewer::visualize_products(products);
+
+    auto finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = finish - start;
+    std::cout << print_time(elapsed.count(), "Create shapes", std::to_string(products.size()));
+
+    return true;
+
+}
+
 void Kernel::bad_openings_to_box_faces(std::list<oFace> &orig_faces, std::unique_ptr<IfcParse::IfcFile> &model, IfcGeom::IteratorSettings settings, std::list<Product> &products, std::unordered_map<std::string, Product *> &todo) const {
 
     std::cout << "[Info] Create shapes of window and door instances that could not be processed, yet.\n";
@@ -217,31 +269,31 @@ std::list<Product *> Kernel::check_shells(std::list<Product *> &products) {
     return faulty_products;
 }
 
-void Kernel::find_relevant_products(std::unique_ptr<IfcParse::IfcFile> &model, const std::set<std::string> &include_entities, std::set<std::string> &non_void_filling_products, bool integrate_openings_into_walls, bool use_ifcopeningelelements_for_virtual_boundaries) {
+void Kernel::find_relevant_products(std::unique_ptr<IfcParse::IfcFile> &model, const std::set<std::string> &include_entities, std::set<std::string> &non_void_filling_products, bool integrate_openings_into_walls, bool use_ifcopeningelelements_for_virtual_boundaries, std::map< IfcUtil::IfcBaseEntity*, std::set<std::string>> &wholes_and_parts) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
     if (ifcSchema == IFC2X3)
-        find_relevant_products_worker<Ifc2x3>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries);
+        find_relevant_products_worker<Ifc2x3>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries, wholes_and_parts);
     else if (ifcSchema == IFC4)
-        find_relevant_products_worker<Ifc4>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries);
+        find_relevant_products_worker<Ifc4>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries, wholes_and_parts);
     else if (ifcSchema == IFC4X1)
-        find_relevant_products_worker<Ifc4x1>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries);
+        find_relevant_products_worker<Ifc4x1>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries, wholes_and_parts);
     else if (ifcSchema == IFC4X2)
-        find_relevant_products_worker<Ifc4x2>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries);
+        find_relevant_products_worker<Ifc4x2>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries, wholes_and_parts);
     else if (ifcSchema == IFC4X3_RC1)
-        find_relevant_products_worker<Ifc4x3_rc1>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries);
+        find_relevant_products_worker<Ifc4x3_rc1>(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopeningelelements_for_virtual_boundaries, wholes_and_parts);
     else
         std::cerr << "[Error] Schema not implemented yet! " << model->schema()->name() << std::endl;
 
     auto finish = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = finish - start;
-    std::cout << print_time(elapsed.count(), "Identify relevant products", std::to_string(non_void_filling_products.size()));
+    std::cout << print_time(elapsed.count(), "Identify relevant products", std::to_string(non_void_filling_products.size()+ wholes_and_parts.size()));
 
 }
 
 template<typename Schema>
-void Kernel::find_relevant_products_worker(std::unique_ptr<IfcParse::IfcFile> &model, const std::set<std::string> &include_entities, std::set<std::string> &non_void_filling_products, bool integrate_openings_into_walls, bool use_ifcopeningelelements_for_virtual_boundaries) {
+void Kernel::find_relevant_products_worker(std::unique_ptr<IfcParse::IfcFile> &model, const std::set<std::string> &include_entities, std::set<std::string> &non_void_filling_products, bool integrate_openings_into_walls, bool use_ifcopeningelelements_for_virtual_boundaries, std::map< IfcUtil::IfcBaseEntity* , std::set<std::string>> &wholes_and_parts) {
 
     // remove duplicate guids in products by replacing them
     ice::remove_duplicate_guids<Schema>(model);
@@ -263,26 +315,94 @@ void Kernel::find_relevant_products_worker(std::unique_ptr<IfcParse::IfcFile> &m
         if (IfcEntityList != nullptr)
             for (auto E: *IfcEntityList) { // for the entities, check if they are child of IfcElement class, only those can have or be an void filling product
 
-                if (does_product_decompose_another_product<Schema>(E->as<typename Schema::IfcProduct>(), false, include_entities)) continue; // skip products decomposing parent products (e.g. windows in IfcCurtainWall or IfcMember in IfcStair)
+                    if(E->as<typename Schema::IfcProduct>()->hasRepresentation()){
+                       auto reps = E->as<typename Schema::IfcProduct>()->Representation()->Representations();
+                       reps->size();
+                       auto rels = E->as<typename Schema::IfcProduct>()->IsDecomposedBy();
+                       std::set<std::string> parts;
+                       bool is2D = false;
+                       bool hasParts = false;
 
-                if (E->declaration().is("IfcElement")) {
+                       for(const auto &rep : *reps){
+                           if(rep->hasRepresentationType() && rep->RepresentationType() == "Curve2D"){
+                               is2D = true;
+                               break;
+                           }
+                       }
 
-                    if (integrate_openings_into_walls) {
+                       if(is2D){
+                            for (const auto &IfcRelAggregate : *rels) {
+                                hasParts = true;
+                                auto relobjects = IfcRelAggregate->RelatedObjects();
+                                for (const auto &IfcObjectDefinition : *relobjects) {
+                                    parts.insert(IfcObjectDefinition->GlobalId());
+                                }
+                            }
 
-                        if (E->as<typename Schema::IfcElement>()->FillsVoids()->size() == 0) {
+                            if(hasParts){
+                            wholes_and_parts.emplace(E->as<typename Schema::IfcProduct>(), parts);
+                            continue;
+                            }
+                       }
 
-                            if (E->declaration().is("IfcDoor") || E->declaration().is("IfcWindow"))
-                                std::cerr << "[Warning] IfcElement is an IfcWindow or IfcDoor, but is not declared as void filling opening (" << E->data().toString().substr(0, 55) << " ...)." << std::endl;
+                    }
 
-                            non_void_filling_products.insert(E->as<typename Schema::IfcProduct>()->GlobalId()); // entity is not a void filling element
+                    if(!E->as<typename Schema::IfcProduct>()->hasRepresentation() || !E->as<typename Schema::IfcProduct>()) {
+                        bool hasParts2 = false;
 
+                        auto rels = E->as<typename Schema::IfcProduct>()->IsDecomposedBy();
+                        std::set<std::string> parts;
+                        for (const auto &IfcRelAggregate: *rels) {
+                            hasParts2 = true;
+                            auto relobjects= IfcRelAggregate->RelatedObjects();
+                            for (const auto &IfcObjectDefinition: *relobjects) {
+                                parts.insert(IfcObjectDefinition->GlobalId());
+                            }
                         }
-                    } else
-                        non_void_filling_products.insert(E->as<typename Schema::IfcProduct>()->GlobalId()); // assume no entity is a void filling element
-                } else
-                    non_void_filling_products.insert(E->as<typename Schema::IfcProduct>()->GlobalId()); // entity is no element and therefore no void filling
+
+                        if(hasParts2){
+                        wholes_and_parts.emplace(E->as<typename Schema::IfcProduct>(), parts);
+                        continue;
+                        }
+                    }
+
+
+                    //if (!(E->declaration().is("IfcBuildingElementPart")))
+                        if (does_product_decompose_another_product<Schema>(E->as<typename Schema::IfcProduct>(), false,
+                                                                           include_entities))
+                            continue; // skip products decomposing parent products (e.g. windows in IfcCurtainWall or IfcMember in IfcStair)
+
+                    if (E->declaration().is("IfcElement")) {
+
+                        if (integrate_openings_into_walls) {
+
+                            if (E->as<typename Schema::IfcElement>()->FillsVoids()->size() == 0) {
+
+                                if (E->declaration().is("IfcDoor") || E->declaration().is("IfcWindow"))
+                                    std::cerr
+                                            << "[Warning] IfcElement is an IfcWindow or IfcDoor, but is not declared as void filling opening ("
+                                            << E->data().toString().substr(0, 55) << " ...)." << std::endl;
+
+                                //std::cout << E->as<typename Schema::IfcProduct>()->GlobalId() << std::endl;
+                                non_void_filling_products.insert(
+                                        E->as<typename Schema::IfcProduct>()->GlobalId()); // entity is not a void filling element
+                                continue;
+                            }
+                            continue;
+                        } else{
+                            non_void_filling_products.insert(
+                                    E->as<typename Schema::IfcProduct>()->GlobalId()); // assume no entity is a void filling element
+                            continue;}
+                    } else{
+                        non_void_filling_products.insert(
+                                E->as<typename Schema::IfcProduct>()->GlobalId()); // entity is no element and therefore no void filling
+                        continue;}
+
+                //std::set<std::string> rest;
+                //rest.insert(E->as<typename Schema::IfcProduct>()->GlobalId());
             }
     }
+
 
     // this code applies if ifcopeningelements shall be used as normal objects to get virtual sbs (e.g. fzk haus or kit institute)
     if (use_ifcopeningelelements_for_virtual_boundaries) {

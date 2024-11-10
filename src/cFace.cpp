@@ -268,6 +268,16 @@ bool cFace::is_enclosed_shell(const TopTools_IndexedDataMapOfShapeListOfShape &e
             } else if (pair.second.size() < 2)
                 continue;
 
+            /*
+            std::list<cFace> visual;
+            visual.emplace_back(*pair.second[0]);
+            visual.emplace_back(*pair.second[1]);
+            Viewer::visualize_cFaces(visual);
+            visual.emplace_back(*this);
+            Viewer::visualize_cFaces(visual);
+            Viewer::visualize_cFaces(cFaces);
+            */
+
             if (is_enclosed_by_pair_faces(pair.second[0], pair.second[1], edge_id)) return true; // decision 1)
         }
     }

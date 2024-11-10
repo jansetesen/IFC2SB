@@ -48,7 +48,8 @@ Graph::Graph(std::string _input,
             // "IfcBuildingElementProxy",
             //"IfcChimney",
             "IfcColumn",
-            //"IfcCovering",
+            "IfcCovering",
+            "IfcBuildingElementPart",
             "IfcCurtainWall",
             //"IfcDeepFoundation",
             "IfcDoor",
@@ -93,7 +94,7 @@ Graph::Graph(std::string _input,
     cfd_entities = {"IfcProduct"};
     offset_entities = {"IfcWall"};
     fuzzy_tol = 0.0001;
-    face_offset_length = 0.2;
+    face_offset_length = 0;
     space_id_counter = 0;
     face_id_counter = 0;
     oface_shell_id = 0;
@@ -180,19 +181,22 @@ bool Graph::prepare_products(Kernel &K, std::unordered_map<IfcUtil::IfcBaseClass
     //***************************************************************
     // Create container for products, that are not void filling products (e.g. walls)
     std::set<std::string> non_void_filling_products;
+    std::map< IfcUtil::IfcBaseEntity*, std::set<std::string>> whole_without_representation2parts;
     //***************************************************************
 
     //***************************************************************
     // Find products and their guids that are from a desired class and are a) not void filling products or b) void filling products
-    K.find_relevant_products(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopening_elements_for_virtual_boundaries);
+    K.find_relevant_products(model, include_entities, non_void_filling_products, integrate_openings_into_walls, use_ifcopening_elements_for_virtual_boundaries, whole_without_representation2parts);
     //***************************************************************
 
+    K.generate_shapes_from_ifc_guids_parts(model, settings, products, whole_without_representation2parts, bounds_min, bounds_max);
     //***************************************************************
     // Generating shapes from specified Ifc entities
     if (!K.generate_shapes_from_ifc_guids(model, settings, products, non_void_filling_products, bounds_min, bounds_max))
         return false;
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_products(products);
     //***************************************************************
     // Simplify products (windows and doors that lacked an IfcOpeningElement) by bounding boxes
     K.simplify_products(products);
@@ -376,6 +380,9 @@ bool Graph::prepare_faces(Kernel &K, std::unordered_map<IfcUtil::IfcBaseClass *,
 
     std::cout << std::flush;
 
+    if(VISUAL)
+        Viewer::visualize_orig_faces(ifc_faces);
+
     return !ifc_faces.empty();
 }
 
@@ -421,7 +428,8 @@ bool Graph::calc_faces_first_level(Kernel &K) {
 
     Kernel::nullify_orig_faces(ifc_faces);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // Check some face properties
     // if (!K.check_faces(faces_1st_level)) std::cerr << "[Error] Check found faulty faces!" << std::endl;
@@ -436,7 +444,8 @@ bool Graph::calc_faces_first_level(Kernel &K) {
     Kernel::check_containment_of_fuse_in_cFaces(fuse, faces_1st_level);
     Kernel::check_duplicate_vertices(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // this mode has been used without virtual faces
     bool offsets_have_fixed_normal = false;
@@ -463,7 +472,8 @@ void Graph::calc_faces_first_level_normals_known(const TopoDS_Shape &fuse) {
     // If face normals were changed during fusing, correct them
     Kernel::correct_face_normals(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // faces_1st_level get their non-seam half-edges from their face
     Kernel::update_half_edges(faces_1st_level);
@@ -473,7 +483,8 @@ void Graph::calc_faces_first_level_normals_known(const TopoDS_Shape &fuse) {
     // Check some adjacence properties between fuse and faces_1st_level
     Kernel::check_adjacency(fuse, faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // flags enclosed faces as trash
     Kernel::identify_enclosed_faces(fuse, faces_1st_level);
@@ -555,12 +566,14 @@ void Graph::calc_faces_first_level_normals_known(const TopoDS_Shape &fuse) {
     // adjacencies are removed, if faces can not build a proper shell
     Kernel::remove_adjacency_by_orientation(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // identify faces that don't have adjacent faces on all edges
     Kernel::identify_hanging_faces(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // get copy of hanging faces
     if (!stl)
@@ -587,7 +600,8 @@ void Graph::calc_faces_first_level_normals_known(const TopoDS_Shape &fuse) {
     //***************************************************************
     Kernel::remove_trash_and_face_adjacency(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // check faces having a non-manifold connection to other faces on an edge
     Kernel::check_manifoldness(faces_1st_level);
@@ -598,7 +612,8 @@ void Graph::calc_faces_first_level_normals_known(const TopoDS_Shape &fuse) {
     // (with opposite edge direction)
     Kernel::remove_non_manifold_adjacency_by_angle(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // check faces having a non-manifold connection to other faces on an edge
     Kernel::check_manifoldness(faces_1st_level);
@@ -624,7 +639,8 @@ void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Ker
     // faces_1st_level get their non-seam half-edges from their face
     Kernel::update_half_edges(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // Check some adjacence properties between fuse and faces_1st_level
     Kernel::check_adjacency(fuse, faces_1st_level);
@@ -652,7 +668,8 @@ void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Ker
     Kernel::check_duplicate_faces(faces_1st_level);
     // In faces_1st_level there are no faces with same HashCode anymore
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // create network of cface - halfedge - cface
     Kernel::update_face_adjacencies(faces_1st_level, fuse);
@@ -681,7 +698,8 @@ void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Ker
     if (!stl)
         Kernel::nonoffset_hanging_faces(faces_1st_level, faces_non_sb);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // deletes trash faces from faces_1st_level and moves them to faces_trash
     // adjacence info of a cface' edges are removed, if adjacent cface is trash
@@ -692,18 +710,24 @@ void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Ker
     // identifies offset faces that are not in contact with shell anymore
     Kernel::identify_decoupled_offset_faces(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     Kernel::remove_trash_and_face_adjacency(faces_1st_level);
     //***************************************************************
-    if(VISUAL)
+    if(VISUAL){
         Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
     //***************************************************************
     // find components in building graph aka spaces
     Kernel::check_adjacency_self_reference(faces_1st_level);
     K.find_spaces_normals_unknown(faces_1st_level, spaces, space_id_counter, face_id_counter);
     //***************************************************************
-
+    if(VISUAL){
+        Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
     //***************************************************************
     // get copy of inner faces
     if (!stl)
@@ -732,7 +756,10 @@ bool Graph::process_spaces(Kernel &K) {
     // get outer hull of building
     Kernel::identify_facade_space(spaces);
     //***************************************************************
-
+    if(VISUAL){
+        Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
     //***************************************************************
     // split spaces by IfcSpaces from original model
     if (space_split) {
@@ -756,20 +783,28 @@ bool Graph::process_spaces(Kernel &K) {
     Kernel::nonoffset_inner_or_coplanar_faces(faces_1st_level, faces_non_sb, true);
     Kernel::remove_trash_and_face_adjacency(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL){
+        Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
     //***************************************************************
     // remove window and door faces occurring as inner or coplanar faces.
     // this is done for bad situations where opening integration into wall
     // did not work and faces prevent wall faces from unifying
     Kernel::remove_inner_window_and_door_faces(faces_non_sb);
     //***************************************************************
-
+    if(VISUAL){
+        Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
     //***************************************************************
     // remove seam edges from faces
     Kernel::remove_seam_edges_from_faces(faces_1st_level);
     //***************************************************************
-    if(VISUAL)
+    if(VISUAL){
         Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
     //***************************************************************
     // unify first level faces_1st_level with adjacent neighbours
     // Attention: before calling this function, all trash faces must be removed)
@@ -779,8 +814,10 @@ bool Graph::process_spaces(Kernel &K) {
         Kernel::unify_cFaces(faces_1st_level, false);
     Kernel::update_adjacence_map_after_unification(faces_1st_level);
     //***************************************************************
-    if(VISUAL)
+    if(VISUAL){
         Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
     //***************************************************************
     // clear cface's adjacence maps
     //K.clear_cface_maps(faces_1st_level); needed for shading
@@ -793,8 +830,10 @@ bool Graph::process_spaces(Kernel &K) {
     Kernel::remove_trash(faces_1st_level, faces_trash);
     Kernel::check_adjacency_null(faces_1st_level);
     //***************************************************************
-    if(VISUAL)
+    if(VISUAL){
         Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
     //***************************************************************
     // In some cases, when opening face can't be unified by wall face, it's missing a parentface
     // Introduces new origfaces and cfaces. Origface is pointing to RelProduct of the face with missing parent
