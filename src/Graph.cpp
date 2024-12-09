@@ -56,13 +56,13 @@ Graph::Graph(std::string _input,
             //"IfcFooting",
             "IfcMember",
             "IfcPlate",
-            // "IfcRailing",
-            //"IfcRamp",
+            "IfcRailing",
+            "IfcRamp",
             //"IfcRampFlight",
             "IfcRoof",
             //"IfcShadingDevice",
             "IfcSlab",
-            //"IfcStair",
+            "IfcStair",
             //"IfcStairFlight",
             "IfcWall",
             "IfcWindow"
@@ -306,6 +306,9 @@ bool Graph::prepare_products(Kernel &K, std::unordered_map<IfcUtil::IfcBaseClass
     Kernel::remove_products(products);
     //***************************************************************
 
+    if(VISUAL)
+        Viewer::visualize_products(products);
+
     //***************************************************************
     // Create shapes of IfcSpaces
     ifcspaces = K.create_shapes_of_IfcSpaces(model, settings);
@@ -364,6 +367,8 @@ bool Graph::prepare_faces(Kernel &K, std::unordered_map<IfcUtil::IfcBaseClass *,
     opening_shapes.clear(); // K.free_container(opening_shapes);
     //***************************************************************
 
+    //Kernel::identify_enclosed_ofaces(orig_faces);
+
     //***************************************************************
     // Find duplicate hash codes in ifc_faces
     Kernel::analyze_orig_faces(ifc_faces, 3 * fuzzy_tol, 1.5 * fuzzy_tol);
@@ -413,6 +418,14 @@ bool Graph::calc_faces_first_level(Kernel &K) {
         return false;
     //if (!Kernel::fuse_ofaces(fuse, ifc_faces, faces_1st_level, fuzzy_tol, face_id_counter, oface_shell_id))
     //    return false;
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
+    /*
+    //***************************************************************
+    Kernel::identify_enclosed_faces(fuse, faces_1st_level);
+    Kernel::remove_trash(faces_1st_level, faces_trash);
+    //***************************************************************
+    */
     if(VISUAL)
         Viewer::visualize_cFaces(faces_1st_level);
 
@@ -627,8 +640,10 @@ void Graph::calc_faces_first_level_normals_known(const TopoDS_Shape &fuse) {
     Kernel::check_closed_space_edge_id(spaces);
     Kernel::check_fixed_normal(faces_1st_level);
     //***************************************************************
-    if(VISUAL)
+    if(VISUAL){
         Viewer::visualize_cFaces(faces_1st_level);
+        Viewer::visualize_spaces(spaces, true, first_level_only);
+    }
 }
 
 void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Kernel &K) {
@@ -639,7 +654,7 @@ void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Ker
     // faces_1st_level get their non-seam half-edges from their face
     Kernel::update_half_edges(faces_1st_level);
     //***************************************************************
-    if(VISUAL)
+    if(!VISUAL)
         Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // Check some adjacence properties between fuse and faces_1st_level
@@ -688,6 +703,9 @@ void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Ker
             }
         }
     }
+
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // identify faces that don't have adjacent faces on all edges
     Kernel::identify_hanging_faces(faces_1st_level);
@@ -705,26 +723,26 @@ void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Ker
     // adjacence info of a cface' edges are removed, if adjacent cface is trash
     Kernel::remove_trash_and_face_adjacency(faces_1st_level);
     //***************************************************************
-
+    if(VISUAL)
+        Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     // identifies offset faces that are not in contact with shell anymore
     Kernel::identify_decoupled_offset_faces(faces_1st_level);
     //***************************************************************
-    if(VISUAL)
+    if(!VISUAL)
         Viewer::visualize_cFaces(faces_1st_level);
     //***************************************************************
     Kernel::remove_trash_and_face_adjacency(faces_1st_level);
     //***************************************************************
-    if(VISUAL){
+    if(!VISUAL){
         Viewer::visualize_cFaces(faces_1st_level);
-        Viewer::visualize_spaces(spaces, true, first_level_only);
     }
     //***************************************************************
     // find components in building graph aka spaces
     Kernel::check_adjacency_self_reference(faces_1st_level);
     K.find_spaces_normals_unknown(faces_1st_level, spaces, space_id_counter, face_id_counter);
     //***************************************************************
-    if(VISUAL){
+    if(!VISUAL){
         Viewer::visualize_cFaces(faces_1st_level);
         Viewer::visualize_spaces(spaces, true, first_level_only);
     }
@@ -743,7 +761,7 @@ void Graph::calc_faces_first_level_normals_unknown(const TopoDS_Shape &fuse, Ker
     Kernel::check_fixed_normal(faces_1st_level);
     Kernel::check_closed_space_edge_id(spaces);
     //***************************************************************
-    if(VISUAL)
+    if(!VISUAL)
         Viewer::visualize_cFaces(faces_1st_level);
 }
 
@@ -756,7 +774,7 @@ bool Graph::process_spaces(Kernel &K) {
     // get outer hull of building
     Kernel::identify_facade_space(spaces);
     //***************************************************************
-    if(VISUAL){
+    if(!VISUAL){
         Viewer::visualize_cFaces(faces_1st_level);
         Viewer::visualize_spaces(spaces, true, first_level_only);
     }

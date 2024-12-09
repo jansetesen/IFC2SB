@@ -193,6 +193,48 @@ bool Kernel::fuse_original_faces2(TopoDS_Shape &fuse, std::list<oFace> &orig_fac
     return modified; // Return the value of modified
 }
 
+/*
+void Kernel::identify_enclosed_ofaces(std::list<oFace> &oFaces) {
+
+    // enclosed faces will be flagged as trash. Attention: enclosed faces are faces that are inside another shell and adjacent to at least one of the shell faces
+    // all other faces have to be found using hanging methods
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    std::unordered_map<unsigned int, std::list<oFace *>> id2oFaces;
+    for (auto &oFace: oFaces) {
+        if (id2oFaces.find(oFace.FaceID()) != id2oFaces.end())
+            id2oFaces[oFace.FaceID()].emplace_back(&oFace);
+        else
+            id2oFaces[oFace.FaceID()] = {&oFace};
+    }
+
+    BRep_Builder B;
+    TopoDS_Compound comp;
+
+    for (const auto &orig: oFaces) {
+
+        B.MakeCompound(comp);
+        B.Add(comp, orig.face);
+    }
+
+    TopTools_IndexedDataMapOfShapeListOfShape edgeFaceMap;
+    TopExp::MapShapesAndAncestors(comp, TopAbs_EDGE, TopAbs_FACE, edgeFaceMap);
+
+    TopExp_Explorer Ex;
+    for (auto &cface: oFaces)
+        if (oface.IsEnclosed(edgeFaceMap, id2oFaces, oFaces)) {
+            oface.SetIsTrash(true);
+            oface.SetIsInner(true);
+        }
+
+    auto finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = finish - start;
+    std::cout << print_time(elapsed.count(), "Identify enclosed ofaces", std::to_string(oFaces.size()));
+
+}
+*/
+
 void Kernel::identify_enclosed_faces(const TopoDS_Shape &fuse, std::list<cFace> &cFaces) {
 
     // enclosed faces will be flagged as trash. Attention: enclosed faces are faces that are inside another shell and adjacent to at least one of the shell faces

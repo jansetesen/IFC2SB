@@ -1501,26 +1501,26 @@ bool Kernel::check_face(const TopoDS_Face &F, unsigned int n, const std::string 
     bool linear_edges = Topo(F).all_edges_non_curved();
 
     if (F.IsNull()) {
-        std::cerr << "[Warning] Null face. " << n << "\t" << hF << "\t" << g << "\t" << planar << "\t" << linear_edges << std::endl;
+        //std::cerr << "[Warning] Null face. " << n << "\t" << hF << "\t" << g << "\t" << planar << "\t" << linear_edges << std::endl;
         good_face = false;
     }
 
     double A = area(F);
-    if (A < 1.0e-6)
-        std::cerr << "[Warning] Small area. " << n << "\t" << hF << "\t" << g << "\t" << A << "\t" << planar << "\t" << linear_edges << std::endl;
+    //if (A < 1.0e-6)
+        //std::cerr << "[Warning] Small area. " << n << "\t" << hF << "\t" << g << "\t" << A << "\t" << planar << "\t" << linear_edges << std::endl;
 
     double A_crit = 1.0e-8;
     if (A < A_crit) good_face = false;
 
     ShapeAnalysis_CheckSmallFace saf;
     if (saf.CheckSpotFace(F, A_crit)) {
-        std::cerr << "[Warning] Spot face. " << n << "\t" << hF << "\t" << g << "\t" << A << "\t" << planar << "\t" << linear_edges << std::endl;
+        //std::cerr << "[Warning] Spot face. " << n << "\t" << hF << "\t" << g << "\t" << A << "\t" << planar << "\t" << linear_edges << std::endl;
         good_face = false;
     }
 
     a.Clear();
     a.Perform(F);
-    if (linear_edges && a.NbVertices() < 3) std::cerr << "[Error] Critical vertex number. " << n << "\t" << hF << "\t" << g << "\t" << a.NbVertices() << "\t" << planar << "\t" << linear_edges << std::endl;
+    //if (linear_edges && a.NbVertices() < 3) std::cerr << "[Error] Critical vertex number. " << n << "\t" << hF << "\t" << g << "\t" << a.NbVertices() << "\t" << planar << "\t" << linear_edges << std::endl;
 
     if (linear_edges) {
         TopoDS_Wire outerWire = BRepTools::OuterWire(F);
@@ -1531,32 +1531,34 @@ bool Kernel::check_face(const TopoDS_Face &F, unsigned int n, const std::string 
         auto nv2 = Topo(outerWire).ordered_vertices_of_wire().Size(); // will return less than correct number. maybe stops at self-intersection
 
         if (nv1 != nv2) {
-            std::cerr << "[Warning] Seems like there is a self-intersection in outer wire (maybe in one point). " << n << "\t" << hF << "\t" << g << "\t" << nv1 << "\t" << nv2 << "\t" << planar << "\t" << linear_edges << std::endl;
+            //std::cerr << "[Warning] Seems like there is a self-intersection in outer wire (maybe in one point). " << n << "\t" << hF << "\t" << g << "\t" << nv1 << "\t" << nv2 << "\t" << planar << "\t" << linear_edges << std::endl;
             good_face = false;
         }
 
         if (nv2 < 3) {
-            std::cerr << "[Error] Outer wire consists of less than three vertices. " << n << "\t" << hF << "\t" << g << "\t" << nv2 << "\t" << planar << "\t" << linear_edges << std::endl;
+            //std::cerr << "[Error] Outer wire consists of less than three vertices. " << n << "\t" << hF << "\t" << g << "\t" << nv2 << "\t" << planar << "\t" << linear_edges << std::endl;
             good_face = false;
         }
     }
 
     if (linear_edges && a.NbEdges() < 3) {
-        std::cerr << "[Error] Critical edge number. " << n << "\t" << hF << "\t" << g << "\t" << a.NbEdges() << "\t" << planar << "\t" << linear_edges << std::endl;
+        //std::cerr << "[Error] Critical edge number. " << n << "\t" << hF << "\t" << g << "\t" << a.NbEdges() << "\t" << planar << "\t" << linear_edges << std::endl;
         good_face = false;
     }
     if (a.NbWires() == 0) {
-        std::cerr << "[Error] Critical wire number. " << n << "\t" << hF << "\t" << g << "\t" << a.NbWires() << "\t" << planar << "\t" << linear_edges << std::endl;
+        //std::cerr << "[Error] Critical wire number. " << n << "\t" << hF << "\t" << g << "\t" << a.NbWires() << "\t" << planar << "\t" << linear_edges << std::endl;
         good_face = false;
     }
 
     //*****************************************************
+    /*
     for (const auto &v: Topo(F).vertices()) {
         if (v.IsNull()) std::cerr << "[Error] Null vertex. " << n << "\t" << hF << "\t" << g << "\t" << hash(v) << "\t" << planar << "\t" << linear_edges << std::endl;
 
         if (v.Orientation() == TopAbs_INTERNAL || v.Orientation() == TopAbs_EXTERNAL)
             std::cerr << "[Warning] Bad orientation vertex. " << n << "\t" << hF << "\t" << g << "\t" << hash(v) << "\t" << v.Orientation() << "\t" << planar << "\t" << linear_edges << std::endl;
     }
+    */
     //*****************************************************
 
     //*****************************************************
@@ -1565,14 +1567,14 @@ bool Kernel::check_face(const TopoDS_Face &F, unsigned int n, const std::string 
         TopoDS_Edge e = TopoDS::Edge(ed);
         bool is_line = is_edge_line(e);
 
-        if (e.IsNull()) std::cerr << "[Error] Null edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
+        //if (e.IsNull()) std::cerr << "[Error] Null edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
 
         if (BRepAdaptor_Curve(e).Curve().Curve().IsNull()) { // BRepAdaptor_Curve(e).Is3DCurve()
             if (is_line) {
-                std::cerr << "[Error] Edge has no 3D curve. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
+                //std::cerr << "[Error] Edge has no 3D curve. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
                 good_face = false;
-            } else
-                std::cerr << "[Warning] Edge has no 3D curve. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
+            } //else
+                //std::cerr << "[Warning] Edge has no 3D curve. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
         }
 
         /*
@@ -1583,25 +1585,25 @@ bool Kernel::check_face(const TopoDS_Face &F, unsigned int n, const std::string 
          */
         if (BRep_Tool::Degenerated(e)) { // BRepAdaptor_Curve(e).Is3DCurve()
             if (is_line) {
-                std::cerr << "[Error] Edge is degenerated. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
+                //std::cerr << "[Error] Edge is degenerated. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
                 good_face = false;
-            } else std::cerr << "[Warning] Edge is degenerated. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
+            } //else std::cerr << "[Warning] Edge is degenerated. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
         }
 
-        if (e.Orientation() == TopAbs_INTERNAL)
-            std::cerr << "[Warning] Seam edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << e.Orientation() << "\t" << planar << "\t" << linear_edges << std::endl;
-        else if (e.Orientation() == TopAbs_EXTERNAL) {
-            std::cerr << "[Error] Bad orientation edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << e.Orientation() << "\t" << planar << "\t" << linear_edges << std::endl;
+        //if (e.Orientation() == TopAbs_INTERNAL)
+            //std::cerr << "[Warning] Seam edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << e.Orientation() << "\t" << planar << "\t" << linear_edges << std::endl;
+        if (e.Orientation() == TopAbs_EXTERNAL) {
+            //std::cerr << "[Error] Bad orientation edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << e.Orientation() << "\t" << planar << "\t" << linear_edges << std::endl;
             good_face = false;
         }
 
         double l = length(e);
         if (l < l_warn) {
             if (l < l_crit && !BRep_Tool::Degenerated(e)) {
-                std::cerr << "[Error] Super short edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << l << "\t" << planar << "\t" << linear_edges << std::endl;
+                //std::cerr << "[Error] Super short edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << l << "\t" << planar << "\t" << linear_edges << std::endl;
                 good_face = false;
-            } else
-                std::cerr << "[Warning] Short edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << l << "\t" << planar << "\t" << linear_edges << std::endl;
+            } //else
+                //std::cerr << "[Warning] Short edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << l << "\t" << planar << "\t" << linear_edges << std::endl;
         }
 
         auto vs = Topo(e).vertices();
@@ -1621,27 +1623,27 @@ bool Kernel::check_face(const TopoDS_Face &F, unsigned int n, const std::string 
             }
 
             if (is_line && v1.IsSame(v2)) {
-                std::cerr << "[Error] Duplicate vertices on edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
+                //std::cerr << "[Error] Duplicate vertices on edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
                 good_face = false;
             }
 
             if (v1.IsNull()) {
-                std::cerr << "[Error] Null vertex in edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
+                //std::cerr << "[Error] Null vertex in edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
                 good_face = false;
             }
             if (v2.IsNull()) {
-                std::cerr << "[Error] Null vertex in edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
+                //std::cerr << "[Error] Null vertex in edge. " << n << "\t" << hF << "\t" << g << "\t" << hash(e) << "\t" << planar << "\t" << linear_edges << std::endl;
                 good_face = false;
             }
         }
-        for (const auto &v: vs)
-            if (v.IsNull()) std::cerr << "[Error] Null vertex (v2). " << n << "\t" << hF << "\t" << g << "\t" << hash(v) << "\t" << planar << "\t" << linear_edges << std::endl;
+        //for (const auto &v: vs)
+            //if (v.IsNull()) std::cerr << "[Error] Null vertex (v2). " << n << "\t" << hF << "\t" << g << "\t" << hash(v) << "\t" << planar << "\t" << linear_edges << std::endl;
     }
     //*****************************************************
 
     //*****************************************************
     for (const auto &w: Topo(F).wires()) {
-        if (w.IsNull()) std::cerr << "[Error] Null wire. " << n << "\t" << hF << "\t" << g << "\t" << hash(w) << "\t" << planar << "\t" << linear_edges << std::endl;
+        //if (w.IsNull()) std::cerr << "[Error] Null wire. " << n << "\t" << hF << "\t" << g << "\t" << hash(w) << "\t" << planar << "\t" << linear_edges << std::endl;
         auto edges = Topo(w).edges();
         if (edges.Size() < 3) {
             if (edges.Size() == 1 && !is_edge_line(TopoDS::Edge(edges.First())))
@@ -1660,7 +1662,7 @@ bool Kernel::check_face(const TopoDS_Face &F, unsigned int n, const std::string 
 
     //*****************************************************
     if (F.Orientation() == TopAbs_INTERNAL || F.Orientation() == TopAbs_EXTERNAL) {
-        std::cerr << "[Error] Bad orientation face. " << n << "\t" << hF << "\t" << g << "\t" << F.Orientation() << "\t" << planar << "\t" << linear_edges << std::endl;
+        //std::cerr << "[Error] Bad orientation face. " << n << "\t" << hF << "\t" << g << "\t" << F.Orientation() << "\t" << planar << "\t" << linear_edges << std::endl;
         good_face = false;
     }
     //*****************************************************
