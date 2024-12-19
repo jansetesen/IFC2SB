@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 project(IFC2SB VERSION 1.0)
 
+# By default build type is set to Debug
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frounding-math -fpic -fopenmp -g -O0")
+set(CMAKE_VERBOSE_MAKEFILE ON)
 # FLAG for static OCC, IFCOS, QT5
 OPTION(STATIC_OCC_IFCOS "Build IFC2SB and SBV with static OCC, IFCOpenShell and QT5" OFF)
 
@@ -36,7 +40,7 @@ message(STATUS "Qt5Gui include files found in ...")
 foreach (line IN LISTS Qt5Gui_INCLUDE_DIRS)
     message("\t${line}")
 endforeach ()
-###################################################### 	
+######################################################
 
 # OpenCascade
 SET(STATIC_OCC_INCLUDE_PATH "/home/fluid/Downloads/Libraries/opencascade-7.4.0_static/build/include/opencascade")
@@ -187,6 +191,7 @@ add_executable(
 target_link_libraries(
         IFC2SB
         ${TARGET_LIBS}
+        OpenMP::OpenMP_CXX
 )
 
 # SBV
@@ -206,11 +211,10 @@ add_executable(
 target_link_libraries(
         SBV
         ${TARGET_LIBS_SBV}
+        OpenMP::OpenMP_CXX
 )
 
-# By default build type is set to Debug
-set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpic -fopenmp")
+
 
 message(STATUS "Static build: ${STATIC_OCC_IFCOS}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")

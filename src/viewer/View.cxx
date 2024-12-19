@@ -211,7 +211,7 @@ void View::takeSnapshot() { // this function needs the freeimage dependency buil
 }
 
 void View::clip() { // this function needs the freeimage dependency built with occ
-    gp_Pln pln(gp_Pnt(1, 1, 2), gp_Dir(0, 0, -1));
+    gp_Pln pln(gp_Pnt(1, 1, 5.5), gp_Dir(0, 0, -1));
     Graphic3d_ClipPlane clip(pln);
     myView->AddClipPlane(clip.Clone());
     myView->Redraw();
